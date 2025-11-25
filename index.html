@@ -26,14 +26,21 @@
             },
             animation: {
               'slide-in': 'slideIn 0.5s ease-out forwards',
-              'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
               'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
-              'boost': 'boost 0.6s ease-in-out'
+              'boost': 'boost 0.6s ease-in-out',
+              'gradient-xy': 'gradient-xy 15s ease infinite',
+              'float': 'float 6s ease-in-out infinite',
+              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'spin-slow': 'spin 8s linear infinite',
+              'shooting-star': 'shooting-star 4s linear infinite',
+              'grid-flow': 'grid-flow 20s linear infinite',
+              'marquee': 'marquee 25s linear infinite'
             },
             keyframes: {
               slideIn: {
-                '0%': { opacity: 0, transform: 'translateY(20px)' },
-                '100%': { opacity: 1, transform: 'translateY(0)' }
+                '0%': { opacity: 0, transform: 'translateY(30px) scale(0.9)' },
+                '100%': { opacity: 1, transform: 'translateY(0) scale(1)' }
               },
               pop: {
                 '0%': { transform: 'scale(0.5)', opacity: 0 },
@@ -46,23 +53,97 @@
                 '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
               },
               boost: {
-                '0%, 100%': { transform: 'scale(1) translateY(0)', filter: 'brightness(100%)' },
-                '50%': { transform: 'scale(1.1) translateY(-15px)', filter: 'brightness(125%) drop-shadow(0 0 15px rgba(255,255,255,0.5))' }
+                '0%, 100%': { transform: 'scale(1)', filter: 'brightness(100%)' },
+                '50%': { transform: 'scale(1.05)', filter: 'brightness(120%) drop-shadow(0 0 20px rgba(255,255,255,0.6))' }
+              },
+              'gradient-xy': {
+                '0%, 100%': {
+                    'background-size': '400% 400%',
+                    'background-position': 'left center'
+                },
+                '50%': {
+                    'background-size': '200% 200%',
+                    'background-position': 'right center'
+                }
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-20px)' }
+              },
+              'grid-flow': {
+                '0%': { transform: 'translateY(0)' },
+                '100%': { transform: 'translateY(50px)' }
+              },
+              'shooting-star': {
+                '0%': { transform: 'translateX(0) translateY(0) rotate(-45deg)', opacity: 1 },
+                '100%': { transform: 'translateX(-500px) translateY(500px) rotate(-45deg)', opacity: 0 }
+              },
+              marquee: {
+                '0%': { transform: 'translateX(100%)' },
+                '100%': { transform: 'translateX(-100%)' }
               }
             }
           },
         },
       }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
       body {
-        background-color: #f2f2f2;
+        background-color: #0f172a;
         font-family: 'Inter', sans-serif;
+        overflow: hidden; 
       }
-      .clip-shape {
-        clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+      .glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      }
+      /* Animated Background Elements */
+      .bg-grid {
+        background-size: 50px 50px;
+        background-image:
+          linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+      }
+      
+      .star {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        height: 2px;
+        background: linear-gradient(-45deg, #5f91ff, rgba(0, 0, 255, 0));
+        filter: drop-shadow(0 0 6px #699bff);
+        animation: shooting-star 4s ease-in-out infinite;
+      }
+      .star::before, .star::after {
+        content: '';
+        position: absolute;
+        top: calc(50% - 1px);
+        right: 0;
+        height: 2px;
+        background: linear-gradient(-45deg, rgba(0, 0, 255, 0), #5f91ff, rgba(0, 0, 255, 0));
+        border-radius: 100%;
+        transform: translateX(50%) rotateZ(45deg);
+        animation: shiny-star 4s ease-in-out infinite;
+      }
+      .star::after {
+        transform: translateX(50%) rotateZ(-45deg);
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
     </style>
   <script type="importmap">
 {
@@ -72,7 +153,8 @@
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "peerjs": "https://esm.sh/peerjs@1.5.2?bundle-deps",
-    "qrcode": "https://esm.sh/qrcode@1.5.3"
+    "qrcode": "https://esm.sh/qrcode@1.5.3",
+    "jspdf": "https://esm.sh/jspdf@2.5.1"
   }
 }
 </script>
