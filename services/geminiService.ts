@@ -34,7 +34,7 @@ const generateMockQuestions = (topic: string, count: number, difficulty: Difficu
         : `[Offline/Demo] Question ${i + 1} about "${topic}" (${difficulty}). (AI API unavailable)`,
       options: options,
       correctIndex: correctIndex,
-      timeLimitSeconds: 20,
+      timeLimitSeconds: 60, // Increased to 60 seconds
       explanation: isDE 
         ? "Dies ist eine generierte Erklärung für den Offline-Modus."
         : "This is a generated explanation for offline mode."
@@ -161,7 +161,8 @@ export const generateQuizQuestions = async (
       Structure:
       - Generate 4 options per question. Only one is correct.
       - Questions should cover the topic broadly.
-      - Set intelligent time limits (10-30s).
+      - Set time limit to 60 seconds.
+      - Suggest a short visual keyword string for an image for each question (field: "imagePrompt").
       
       IMPORTANT - THE EXPLANATION (explanation):
       - The "explanation" is the core.
@@ -178,7 +179,7 @@ export const generateQuizQuestions = async (
       
       Output the result EXCLUSIVELY as a valid JSON Array. 
       No Markdown, no explanations outside JSON.
-      Format: [{"text": "...", "options": ["A","B","C","D"], "correctIndex": 0, "timeLimitSeconds": 20, "explanation": "..."}, ...]
+      Format: [{"text": "...", "options": ["A","B","C","D"], "correctIndex": 0, "timeLimitSeconds": 60, "explanation": "...", "imagePrompt": "visual description..."}, ...]
       `;
     }
 
@@ -201,6 +202,7 @@ export const generateQuizQuestions = async (
             correctIndex: { type: Type.INTEGER },
             timeLimitSeconds: { type: Type.INTEGER },
             explanation: { type: Type.STRING },
+            imagePrompt: { type: Type.STRING },
           },
           required: ["text", "options", "correctIndex", "timeLimitSeconds", "explanation"],
         },
@@ -222,12 +224,37 @@ export const generateQuizQuestions = async (
         rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     }
 
-    const questions = JSON.parse(rawText) as Question[];
+    const parsedQuestions = JSON.parse(rawText) as (Question & { imagePrompt?: string })[];
     
-    return questions.map(q => ({
-        ...q,
-        options: q.options ? q.options.slice(0, 4) : ["A","B","C","D"]
+    // Generate Images for questions in parallel (limit to first 5-8 to save time/quota, or all if few)
+    // We will attempt to generate images for ALL questions but catch errors gracefully
+    const questionsWithImages = await Promise.all(parsedQuestions.map(async (q) => {
+        let imageUrl = undefined;
+        if (q.imagePrompt || q.text) {
+             try {
+                // Shorten prompt to save tokens and be specific
+                const imgPrompt = `Cartoon style illustration, ${q.imagePrompt || q.text}. Minimalist, colorful, high quality 3d render.`;
+                const imgResponse = await ai.models.generateImages({
+                    model: 'imagen-4.0-generate-001',
+                    prompt: imgPrompt,
+                    config: { numberOfImages: 1, aspectRatio: '16:9', outputMimeType: 'image/jpeg' }
+                });
+                if (imgResponse.generatedImages?.length > 0) {
+                    imageUrl = imgResponse.generatedImages[0].image.imageBytes;
+                }
+             } catch (e) {
+                 // Ignore image gen errors, proceed with text only
+             }
+        }
+        return {
+            ...q,
+            imageUrl,
+            options: q.options ? q.options.slice(0, 4) : ["A","B","C","D"],
+            timeLimitSeconds: 60
+        };
     }));
+
+    return questionsWithImages;
 
   } catch (error) {
     console.error("Gemini API failed (Questions), using fallback:", error);

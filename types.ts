@@ -45,6 +45,8 @@ export interface Question {
   correctIndex: number;
   timeLimitSeconds: number;
   explanation?: string; // New: AI explanation why the answer is correct
+  imageUrl?: string;
+  imagePrompt?: string;
 }
 
 export interface Player {

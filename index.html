@@ -2,7 +2,7 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Herr Raza - Das Quiz</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -35,7 +35,7 @@
               'spin-slow': 'spin 8s linear infinite',
               'shooting-star': 'shooting-star 4s linear infinite',
               'grid-flow': 'grid-flow 20s linear infinite',
-              'marquee': 'marquee 25s linear infinite'
+              'marquee': 'marquee 60s linear infinite'
             },
             keyframes: {
               slideIn: {
@@ -79,7 +79,7 @@
                 '100%': { transform: 'translateX(-500px) translateY(500px) rotate(-45deg)', opacity: 0 }
               },
               marquee: {
-                '0%': { transform: 'translateX(100%)' },
+                '0%': { transform: 'translateX(0%)' },
                 '100%': { transform: 'translateX(-100%)' }
               }
             }
@@ -89,10 +89,15 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-      body {
+      html, body, #root {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Prevent document scroll, handle inside App */
         background-color: #0f172a;
         font-family: 'Inter', sans-serif;
-        overflow: hidden; 
+        -webkit-overflow-scrolling: touch;
       }
       .glass {
         background: rgba(255, 255, 255, 0.1);
@@ -137,6 +142,11 @@
       }
       .star::after {
         transform: translateX(50%) rotateZ(-45deg);
+      }
+
+      /* Pause Animation Utility */
+      .paused {
+        animation-play-state: paused !important;
       }
 
       /* Custom Scrollbar */
