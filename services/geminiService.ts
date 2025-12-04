@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Difficulty, Question, Language } from "../types";
+import { getFreeQuestions } from "./freeQuestionBank";
 
 // Initialize Gemini Client
 // The API key is injected via process.env.API_KEY
@@ -143,6 +144,11 @@ export const generateQuizQuestions = async (
   customInstructions: string = "",
   lang: Language = 'DE'
 ): Promise<Question[]> => {
+  // If no API key is provided we fall back to the built-in, free question bank
+  if (!process.env.API_KEY) {
+    return getFreeQuestions(topic, difficulty, count, lang);
+  }
+
   try {
     const ai = getAiClient();
     const isDE = lang === 'DE';

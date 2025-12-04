@@ -15,6 +15,13 @@ View your app in AI Studio: https://ai.studio/apps/drive/1VsVICE0K6W1MqH1qwpSbJO
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. (Optional) Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+### Offline & kostenlose Nutzung
+
+Ohne API-Key nutzt Herr Raza automatisch einen eingebauten kostenlosen Fragenpool
+mit lernpsychologischen Best-Practice-Fragen (Deutsch/Englisch). Damit funktioniert
+die App zu 100 % auch ohne externe Services. Wenn eine Gemini API verfügbar ist,
+werden weiterhin KI-generierte, themenspezifische Fragen genutzt.
