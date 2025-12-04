@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Susanne – Dein Taschenrechner</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --accent: #f472b6;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 20% 20%, rgba(244, 114, 182, 0.08), transparent 25%),
+                  radial-gradient(circle at 80% 30%, rgba(94, 234, 212, 0.08), transparent 25%),
+                  var(--bg);
+      color: var(--text);
+      padding: 32px;
+    }
+
+    .shell {
+      width: min(440px, 100%);
+      background: linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.85));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow);
+      border-radius: calc(var(--radius) * 1.2);
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+
+    .header {
+      padding: 20px 22px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .title {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .badge {
+      background: linear-gradient(90deg, #f472b6, #22d3ee);
+      color: #0f172a;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      box-shadow: 0 8px 25px rgba(34, 211, 238, 0.35);
+    }
+
+    .display {
+      padding: 24px 22px 16px;
+      text-align: right;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+    }
+
+    .display .label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+    }
+
+    .display .value {
+      margin: 8px 0 0;
+      font-size: 2.4rem;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+      word-break: break-all;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      padding: 18px 20px 22px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      padding: 16px;
+      font-size: 1.05rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 25px rgba(0, 0, 0, 0.25);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    button:active {
+      transform: translateY(0px) scale(0.99);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .accent { background: linear-gradient(135deg, #f472b6, #c084fc); color: #0f172a; font-weight: 800; }
+    .ghost { color: var(--muted); }
+    .wide { grid-column: span 2; }
+    .tall { grid-row: span 2; }
+
+    .footer {
+      padding: 14px 20px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22d3ee;
+      box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7);
+      animation: pulse 2.6s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7); }
+      70% { box-shadow: 0 0 0 12px rgba(34, 211, 238, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" aria-label="Taschenrechner Susanne">
+    <header class="header">
+      <p class="title">Susanne · Smart Calc</p>
+      <span class="badge">Taschenrechner</span>
+    </header>
+
+    <section class="display" aria-live="polite">
+      <div class="label">Anzeige</div>
+      <div id="display" class="value">0</div>
+    </section>
+
+    <section class="grid" aria-label="Tastenfeld">
+      <button class="ghost" data-action="clear">AC</button>
+      <button class="ghost" data-action="invert">±</button>
+      <button class="ghost" data-action="percent">%</button>
+      <button class="accent" data-action="operator" data-value="/">÷</button>
+
+      <button data-value="7">7</button>
+      <button data-value="8">8</button>
+      <button data-value="9">9</button>
+      <button class="accent" data-action="operator" data-value="*">×</button>
+
+      <button data-value="4">4</button>
+      <button data-value="5">5</button>
+      <button data-value="6">6</button>
+      <button class="accent" data-action="operator" data-value="-">−</button>
+
+      <button data-value="1">1</button>
+      <button data-value="2">2</button>
+      <button data-value="3">3</button>
+      <button class="accent" data-action="operator" data-value="+">+</button>
+
+      <button class="wide" data-value="0">0</button>
+      <button data-value=",">,</button>
+      <button class="accent tall" data-action="equals">=</button>
+    </section>
+
+    <footer class="footer">
+      <span>Bereit: Susanne rechnet für dich.</span>
+      <span class="status-dot" aria-hidden="true"></span>
+    </footer>
+  </main>
+
+  <script>
+    (function() {
+      const display = document.getElementById('display');
+      let current = '0';
+      let operator = null;
+      let previous = null;
+      let shouldReset = false;
+
+      const format = (value) => {
+        if (!isFinite(value)) return 'Fehler';
+        const [intPart, decimal] = value.toString().split('.');
+        const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return decimal ? `${formattedInt},${decimal}` : formattedInt;
+      };
+
+      const updateDisplay = () => { display.textContent = format(current); };
+
+      const appendNumber = (num) => {
+        if (shouldReset) { current = num === ',' ? '0,' : num; shouldReset = false; }
+        else if (num === ',' && current.includes(',')) return;
+        else if (current === '0' && num !== ',') current = num;
+        else current += num;
+        updateDisplay();
+      };
+
+      const setOperator = (op) => {
+        if (operator && !shouldReset) compute();
+        previous = current;
+        operator = op;
+        shouldReset = true;
+      };
+
+      const compute = () => {
+        if (operator === null || shouldReset) return;
+        const prev = parseFloat(previous.replace(',', '.'));
+        const curr = parseFloat(current.replace(',', '.'));
+        let result = 0;
+        switch (operator) {
+          case '+': result = prev + curr; break;
+          case '-': result = prev - curr; break;
+          case '*': result = prev * curr; break;
+          case '/': result = curr === 0 ? Infinity : prev / curr; break;
+        }
+        current = result.toString().replace('.', ',');
+        operator = null;
+        shouldReset = true;
+        updateDisplay();
+      };
+
+      const clear = () => {
+        current = '0';
+        previous = null;
+        operator = null;
+        shouldReset = false;
+        updateDisplay();
+      };
+
+      const invert = () => {
+        if (current === '0') return;
+        current = current.startsWith('-') ? current.slice(1) : '-' + current;
+        updateDisplay();
+      };
+
+      const percent = () => {
+        const value = parseFloat(current.replace(',', '.'));
+        current = (value / 100).toString().replace('.', ',');
+        updateDisplay();
+      };
+
+      document.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLButtonElement)) return;
+
+        const { action, value } = target.dataset;
+        if (value && !action) { appendNumber(value); return; }
+
+        switch (action) {
+          case 'operator': setOperator(value); break;
+          case 'equals': compute(); break;
+          case 'clear': clear(); break;
+          case 'invert': invert(); break;
+          case 'percent': percent(); break;
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        const { key } = event;
+        if (/^[0-9]$/.test(key)) return appendNumber(key);
+        if (key === ',' || key === '.') return appendNumber(',');
+        if (["+","-","*","/"].includes(key)) return setOperator(key);
+        if (key === 'Enter' || key === '=') return compute();
+        if (key === 'Escape') return clear();
+        if (key === '%') return percent();
+      });
+
+      updateDisplay();
+    })();
+  </script>
+</body>
+</html>
