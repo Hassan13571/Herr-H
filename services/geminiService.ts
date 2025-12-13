@@ -1,10 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Difficulty, Question, Language } from "../types";
+import { getFreeQuestions } from "./freeQuestionBank";
+
+// Resolve API key from Vite runtime (preferred) or server env (fallback)
+const resolveApiKey = () => {
+  // Vite exposes variables on import.meta.env and requires the VITE_ prefix
+  const metaEnv = (typeof import.meta !== "undefined" ? (import.meta as any).env : undefined) || {};
+  return (
+    metaEnv.VITE_GEMINI_API_KEY ||
+    metaEnv.GEMINI_API_KEY ||
+    (typeof process !== "undefined" ? process.env?.GEMINI_API_KEY || process.env?.API_KEY : undefined)
+  );
+};
 
 // Initialize Gemini Client
-// The API key is injected via process.env.API_KEY
+// The API key is injected via Vite runtime or server env
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = resolveApiKey();
   if (!apiKey) {
     console.error("API Key not found in environment variables");
     throw new Error("API Key missing");
@@ -143,6 +155,11 @@ export const generateQuizQuestions = async (
   customInstructions: string = "",
   lang: Language = 'DE'
 ): Promise<Question[]> => {
+  // If no API key is provided we fall back to the built-in, free question bank
+  if (!resolveApiKey()) {
+    return getFreeQuestions(topic, difficulty, count, lang);
+  }
+
   try {
     const ai = getAiClient();
     const isDE = lang === 'DE';
