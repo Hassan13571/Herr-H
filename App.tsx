@@ -351,6 +351,105 @@ const DynamicBackground = ({ theme }: { theme: Theme }) => (
     </div>
 );
 
+const createBadgeSvg = (emoji: string, start: string, end: string) => {
+    const svg = `
+      <svg width="320" height="200" viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="${start}" stop-opacity="0.95" />
+            <stop offset="100%" stop-color="${end}" stop-opacity="0.95" />
+          </linearGradient>
+        </defs>
+        <rect rx="28" ry="28" width="320" height="200" fill="url(#g)" />
+        <circle cx="250" cy="60" r="50" fill="white" fill-opacity="0.16" />
+        <circle cx="80" cy="150" r="60" fill="white" fill-opacity="0.08" />
+        <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="86" opacity="0.9">${emoji}</text>
+      </svg>
+    `;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+};
+
+const SafetyGuideShowcase = ({ theme }: { theme: Theme }) => {
+    const cards = [
+        { title: "Thema & Grundlage", icon: "📘", accent: "from-purple-500/30 to-pink-500/20", image: createBadgeSvg("📘", "#7c3aed", "#ec4899"), points: ["Sicherer und sachgerechter Umgang mit der gewerblichen Kippbratpfanne", "Verbindliche Grundlage, bevor mit dem Kochen gearbeitet wird"] },
+        { title: "Schwerpunkte", icon: "🎯", accent: "from-blue-500/30 to-cyan-500/20", image: createBadgeSvg("🎯", "#2563eb", "#06b6d4"), points: ["Geräteaufbau & Funktionen", "Gefahren kennen", "Kippvorgang trainieren", "Reinigung & Pflege"] },
+        { title: "Warum gibt es die Kippbratpfanne?", icon: "🍳", accent: "from-amber-500/30 to-orange-500/20", image: createBadgeSvg("🍳", "#f59e0b", "#f97316"), points: ["Große Mengen sicher und sauber verarbeiten", "Ergonomisch arbeiten – weniger körperliche Belastung", "Höhere Hygiene und Arbeitssicherheit"] },
+        { title: "Lernziele", icon: "🎓", accent: "from-emerald-500/30 to-teal-500/20", image: createBadgeSvg("🎓", "#34d399", "#14b8a6"), points: ["Bauteile korrekt benennen (Tiegel, Deckel, Regler, Schalter, Kontrollleuchte, Kippvorrichtung)", "Typische Gefahren erkennen", "Kippvorgang ruhig & kontrolliert durchführen", "Gerät vor Betrieb und bei Störungen richtig handhaben"] },
+        { title: "Grundregeln vor dem Betrieb", icon: "✅", accent: "from-green-500/30 to-lime-500/20", image: createBadgeSvg("✅", "#22c55e", "#84cc16"), points: ["Gerät steht stabil, Boden sauber & trocken", "Füllmarke beachten, Deckel prüfen", "Auffangbehälter bereitstellen", "Persönliche Schutzausrüstung tragen"] },
+        { title: "Kippvorgang", icon: "↩️", accent: "from-indigo-500/30 to-purple-500/20", image: createBadgeSvg("↩️", "#6366f1", "#a855f7"), points: ["Deckel öffnen", "Geeigneten Behälter unterstellen", "Schalter rechts: kippt / links: senkt", "Ruhig, langsam, kontrolliert arbeiten"] },
+        { title: "Typische Gefahren", icon: "⚠️", accent: "from-red-500/30 to-amber-500/20", image: createBadgeSvg("⚠️", "#ef4444", "#f59e0b"), points: ["Überfüllung über die Füllmarke", "Ruckartiges Kippen", "Nasser oder fettiger Boden", "Arbeiten ohne Schutzhandschuhe"] },
+        { title: "Störungen am Gerät", icon: "🛑", accent: "from-rose-500/30 to-red-500/20", image: createBadgeSvg("🛑", "#fb7185", "#ef4444"), points: ["Gerät ausschalten und vom Strom trennen", "Kundendienst informieren", "Keine eigenen Reparaturversuche"] },
+        { title: "Reinigung & Pflege", icon: "🧽", accent: "from-sky-500/30 to-blue-500/20", image: createBadgeSvg("🧽", "#0ea5e9", "#3b82f6"), points: ["Gerät nicht schockartig abkühlen", "Vor Reinigung ausschalten", "Kein Hochdruckreiniger, keine aggressiven/ scheuernden Mittel", "Warm reinigen & trocken wischen"] }
+    ];
+
+    return (
+        <div className="w-full max-w-6xl mt-10 animate-slide-in">
+            <div className="glass-panel rounded-3xl shadow-2xl p-6 md:p-8 border border-white/50">
+                <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start">
+                    <div className="flex-1 space-y-3">
+                        <p className="text-xs uppercase font-black tracking-[0.2em] text-purple-700">Unterweisung sichtbar gestalten</p>
+                        <h2 className={`text-3xl md:text-4xl font-display font-black leading-tight text-transparent bg-clip-text bg-gradient-to-r ${theme.accentText}`}>
+                            Sicherer Umgang mit der gewerblichen Kippbratpfanne
+                        </h2>
+                        <p className="text-gray-700 font-semibold text-sm md:text-base leading-relaxed">
+                            Kompakte Merkkarten mit Piktogrammen und klaren Stichpunkten – perfekt für eine visuelle Einweisung im Team oder als Ausdruck neben dem Gerät.
+                        </p>
+                        <div className="inline-flex items-center gap-2 bg-purple-50 text-purple-800 font-bold px-4 py-2 rounded-full shadow-sm border border-purple-100">
+                            <span>✨</span> Sofort einsetzbar, anschaulich & einprägsam
+                        </div>
+                    </div>
+                    <div className="flex-shrink-0 w-full md:w-72">
+                        <div className="relative">
+                            <div className="absolute inset-0 blur-3xl bg-purple-300/40 rounded-2xl"></div>
+                            <img src={createBadgeSvg("🍲", "#7c3aed", "#ec4899")} alt="Visual Guide" className="relative w-full rounded-2xl shadow-2xl border border-white/70" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-8">
+                    {cards.map((card) => (
+                        <div key={card.title} className={`rounded-2xl bg-gradient-to-br ${card.accent} border border-white/40 shadow-xl overflow-hidden backdrop-blur-md`}>
+                            <div className="p-4 bg-white/50 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-2xl">{card.icon}</span>
+                                    <p className="font-black text-gray-800">{card.title}</p>
+                                </div>
+                                <span className="text-xs font-bold uppercase text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-100">Quick View</span>
+                            </div>
+                            <div className="p-4 flex flex-col gap-3">
+                                <img src={card.image} alt={`${card.title} Illustration`} className="w-full rounded-xl shadow-lg border border-white/60" />
+                                <ul className="space-y-2 text-sm text-gray-800 font-semibold">
+                                    {card.points.map((p) => (
+                                        <li key={p} className="flex items-start gap-2">
+                                            <span className="mt-0.5 text-purple-600">•</span>
+                                            <span>{p}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4 md:gap-6 mt-8">
+                    <div className="rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-white/60 p-5 shadow-xl">
+                        <div className="flex items-center gap-3 mb-3">
+                            <span className="text-2xl">🧘</span>
+                            <p className="text-lg font-black text-emerald-900">Kippvorgang ruhig halten</p>
+                        </div>
+                        <p className="text-emerald-900/80 font-semibold leading-relaxed">Behälter positionieren, dann Schalter nutzen – jede Bewegung bewusst und langsam, damit nichts spritzt.</p>
+                    </div>
+                    <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-white/20 p-6 shadow-xl text-white relative overflow-hidden">
+                        <div className="absolute right-4 -top-6 text-6xl opacity-20">⭐</div>
+                        <p className="text-xs uppercase tracking-[0.3em] text-white/60 mb-2">Merksatz</p>
+                        <p className="text-2xl font-black leading-snug">Gerät kennen – Gefahren erkennen – Regeln einhalten – Sicher arbeiten.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Components ---
 const Layout: React.FC<{ children?: React.ReactNode; className?: string, showHeader?: boolean, theme?: Theme, isEmbedded?: boolean }> = ({ children, className = "", showHeader = true, theme = THEMES.default, isEmbedded = false }) => {
     const toggleFullscreen = () => {
@@ -452,7 +551,82 @@ const LocalApp = ({ theme, lang }: { theme: Theme, lang: Language }) => {
     const advanceGame = () => { if (currentQuestionIndex + 1 >= questions.length) { setGameState(GameState.GAME_OVER); } else { setCurrentQuestionIndex(prev => prev + 1); nextTurn(); } };
     const toggleNews = async () => { if (newsHeadlines.length > 0) { setNewsHeadlines([]); return; } setIsLoadingNews(true); const news = await fetchDailyNews(lang); setNewsHeadlines(news); setIsLoadingNews(false); };
 
-    if (gameState === GameState.WELCOME) return ( <Layout theme={theme}><div className="flex flex-col items-center justify-center min-h-screen px-4 py-8 relative z-20"><div className="glass-panel p-8 rounded-3xl shadow-2xl max-w-lg w-full animate-slide-in border border-white/50"><div className="flex items-center gap-3 mb-6"><span className="text-4xl">📱</span><div><h1 className={`text-3xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r ${theme.accentText}`}>{t.localGame}</h1><p className="text-gray-500 font-medium text-sm">{t.localDesc}</p></div></div><div className="space-y-6"><div><label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.topic}</label><div className="flex gap-2"><input type="text" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t.topicPlaceholder} className="flex-1 px-4 py-3 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-purple-500 outline-none font-bold text-gray-700 transition-all"/><button onClick={handleGenerateTopics} disabled={isGeneratingTopics} className={`bg-gradient-to-br ${theme.accentText} text-white p-3 rounded-xl hover:scale-105 transition-transform shadow-lg`}>{isGeneratingTopics ? "..." : <Sparkles className="w-6 h-6" />}</button></div>{suggestedTopics.length > 0 && <div className="flex flex-wrap gap-2 mt-3 animate-slide-in">{suggestedTopics.map((t, i) => <button key={i} onClick={() => setTopic(t)} className="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors">{t}</button>)}</div>}</div><div><label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider flex items-center gap-2"><span>🧠 {t.expertFocus}</span></label><textarea value={customInstructions} onChange={(e) => setCustomInstructions(e.target.value)} placeholder={t.expertPlaceholder} className="w-full px-4 py-3 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-purple-500 outline-none font-medium text-gray-700 transition-all h-20 resize-none text-sm"/></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><label className="flex items-center justify-between cursor-pointer group"><div className="flex flex-col"><span className="font-bold text-gray-700 text-sm">🌐 {t.liveData}</span><span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide">{t.liveDesc}</span></div><div className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${useRealTime ? 'bg-green-500' : 'bg-gray-300'}`} onClick={() => setUseRealTime(!useRealTime)}><div className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 ${useRealTime ? 'translate-x-5' : ''}`} /></div></label></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.difficulty}</label><select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)} className="w-full px-3 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 font-bold text-gray-700 outline-none focus:border-purple-500 appearance-none">{Object.values(Difficulty).map(d => <option key={d} value={d}>{d}</option>)}</select></div><div><label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.questionCount}</label><select value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 font-bold text-gray-700 outline-none focus:border-purple-500 appearance-none">{[10, 20, 30, 40, 50].map(c => <option key={c} value={c}>{c}</option>)}</select></div></div><div><label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.players} ({players.length})</label><div className="flex gap-2 mb-3"><input type="text" value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddPlayer()} placeholder={t.addPlayer} className="flex-1 px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 outline-none focus:border-purple-500"/><Button onClick={handleAddPlayer} size="sm" variant="secondary" disabled={!newPlayerName.trim()}>+</Button></div><div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">{players.map((p, i) => <div key={i} className="bg-white border border-gray-200 pl-2 pr-1 py-1 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm animate-pop"><span>{p.avatar}</span><span className="text-gray-700">{p.name}</span><button onClick={() => setPlayers(players.filter(pl => pl.id !== p.id))} className="w-5 h-5 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors">×</button></div>)}</div></div><Button onClick={startGame} className={`w-full py-4 text-xl shadow-xl ${theme.primary} border-none`} disabled={!topic || players.length === 0}>{t.startGame}</Button></div></div></div></Layout> );
+    if (gameState === GameState.WELCOME) {
+        return (
+            <Layout theme={theme}>
+                <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8 relative z-20">
+                    <div className="glass-panel p-8 rounded-3xl shadow-2xl max-w-lg w-full animate-slide-in border border-white/50">
+                        <div className="flex items-center gap-3 mb-6">
+                            <span className="text-4xl">📱</span>
+                            <div>
+                                <h1 className={`text-3xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r ${theme.accentText}`}>{t.localGame}</h1>
+                                <p className="text-gray-500 font-medium text-sm">{t.localDesc}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.topic}</label>
+                                <div className="flex gap-2">
+                                    <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t.topicPlaceholder} className="flex-1 px-4 py-3 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-purple-500 outline-none font-bold text-gray-700 transition-all"/>
+                                    <button onClick={handleGenerateTopics} disabled={isGeneratingTopics} className={`bg-gradient-to-br ${theme.accentText} text-white p-3 rounded-xl hover:scale-105 transition-transform shadow-lg`}>{isGeneratingTopics ? "..." : <Sparkles className="w-6 h-6" />}</button>
+                                </div>
+                                {suggestedTopics.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-3 animate-slide-in">
+                                        {suggestedTopics.map((sTopic, i) => (
+                                            <button key={i} onClick={() => setTopic(sTopic)} className="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors">{sTopic}</button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider flex items-center gap-2"><span>🧠 {t.expertFocus}</span></label>
+                                <textarea value={customInstructions} onChange={(e) => setCustomInstructions(e.target.value)} placeholder={t.expertPlaceholder} className="w-full px-4 py-3 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-purple-500 outline-none font-medium text-gray-700 transition-all h-20 resize-none text-sm"/>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <label className="flex items-center justify-between cursor-pointer group">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-gray-700 text-sm">🌐 {t.liveData}</span>
+                                        <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide">{t.liveDesc}</span>
+                                    </div>
+                                    <div className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${useRealTime ? 'bg-green-500' : 'bg-gray-300'}`} onClick={() => setUseRealTime(!useRealTime)}>
+                                        <div className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 ${useRealTime ? 'translate-x-5' : ''}`} />
+                                    </div>
+                                </label>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.difficulty}</label>
+                                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)} className="w-full px-3 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 font-bold text-gray-700 outline-none focus:border-purple-500 appearance-none">{Object.values(Difficulty).map(d => <option key={d} value={d}>{d}</option>)}</select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.questionCount}</label>
+                                    <select value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 font-bold text-gray-700 outline-none focus:border-purple-500 appearance-none">{[10, 20, 30, 40, 50].map(c => <option key={c} value={c}>{c}</option>)}</select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">{t.players} ({players.length})</label>
+                                <div className="flex gap-2 mb-3">
+                                    <input type="text" value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddPlayer()} placeholder={t.addPlayer} className="flex-1 px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 outline-none focus:border-purple-500"/>
+                                    <Button onClick={handleAddPlayer} size="sm" variant="secondary" disabled={!newPlayerName.trim()}>+</Button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                    {players.map((p, i) => (
+                                        <div key={i} className="bg-white border border-gray-200 pl-2 pr-1 py-1 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm animate-pop">
+                                            <span>{p.avatar}</span>
+                                            <span className="text-gray-700">{p.name}</span>
+                                            <button onClick={() => setPlayers(players.filter(pl => pl.id !== p.id))} className="w-5 h-5 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors">×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <Button onClick={startGame} className={`w-full py-4 text-xl shadow-xl ${theme.primary} border-none`} disabled={!topic || players.length === 0}>{t.startGame}</Button>
+                        </div>
+                    </div>
+                    <SafetyGuideShowcase theme={theme} />
+                </div>
+            </Layout>
+        );
+    }
     if (gameState === GameState.LOADING) return <Layout theme={theme} className="flex items-center justify-center"><div className="animate-pulse font-black text-4xl text-white drop-shadow-lg">{loadingMessage}</div></Layout>;
     if (gameState === GameState.LOBBY) return ( <Layout theme={theme}><NewsTicker headlines={newsHeadlines} lang={lang} /> <MusicControlWidget playing={musicOn} onToggle={() => setMusicOn(!musicOn)} volume={musicVolume} onVolumeChange={setMusicVolume} track={musicTrack} onTrackChange={setMusicTrack} lang={lang} /> <Soundboard /><div className="flex flex-col items-center justify-center h-full p-8 text-center animate-slide-in relative z-20"><div className="glass p-12 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.3)] max-w-2xl w-full flex flex-col items-center border border-white/20"><div className="absolute top-4 left-4"><button onClick={toggleNews} className={`px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${newsHeadlines.length > 0 ? 'bg-red-600 text-white animate-pulse' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}>{isLoadingNews ? t.newsLoading : t.news}</button></div><h2 className="text-2xl font-bold text-white/80 mb-6 uppercase tracking-widest">{t.nextRound}</h2><div className="relative mb-8"><PlayerAvatar player={activePlayer} size="xl" /></div><div className="text-6xl font-display font-black text-white mb-8 drop-shadow-lg">{activePlayer.name}</div><Button onClick={startQuestion} size="lg" className={`w-full max-w-sm text-2xl py-6 shadow-2xl ${theme.primary} border-none`}>{t.ready}</Button><div className="mt-4 text-white/40 text-sm font-bold uppercase tracking-widest">{t.pressSpace}</div></div></div></Layout> );
     if (gameState === GameState.PLAYING) { const currentQ = questions[currentQuestionIndex]; return ( <Layout theme={theme}><NewsTicker headlines={newsHeadlines} lang={lang} /><MusicControlWidget playing={musicOn} onToggle={() => setMusicOn(!musicOn)} volume={musicVolume} onVolumeChange={setMusicVolume} track={musicTrack} onTrackChange={setMusicTrack} lang={lang} /> <Soundboard /><div className="flex flex-col h-full relative z-20"><div className="glass px-6 py-4 flex justify-between items-center text-white mx-4 mt-4 rounded-2xl"><div className="flex items-center gap-3"><PlayerAvatar player={activePlayer} size="sm" /><span className="font-bold text-xl">{activePlayer.name}</span></div>{hasJoker && <button onClick={useJoker} className={`bg-gradient-to-r ${theme.accentText} px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 border border-white/20`}><span>🃏 {t.joker}</span></button>}<div className={`px-4 py-2 rounded-xl font-mono font-bold text-xl min-w-[80px] text-center transition-all ${timeLeft < 10 ? 'bg-red-500 animate-pulse shadow-red-500/50 shadow-lg' : 'bg-white/10'}`}>{timeLeft}s</div></div><div className="flex-1 p-4 md:p-8 overflow-y-auto flex flex-col items-center justify-center"><div className="glass p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-4xl text-center mb-6 border border-white/20 backdrop-blur-xl relative flex flex-col items-center">{currentQ.imageUrl && (<div className="w-full max-w-2xl h-48 md:h-64 rounded-2xl overflow-hidden shadow-2xl mb-6 border-4 border-white/10 relative group"><img src={`data:image/jpeg;base64,${currentQ.imageUrl}`} alt="Quiz Visual" className="w-full h-full object-cover transition-transform duration-[20s] ease-linear group-hover:scale-110" /></div>)}<button onClick={() => speakText(currentQ.text, lang)} className="absolute top-4 right-4 text-3xl opacity-50 hover:opacity-100 transition-opacity hover:scale-110 active:scale-95" title="Vorlesen">🔊</button><h2 className="text-xl md:text-3xl font-display font-black text-white leading-tight drop-shadow-md">{currentQ.text}</h2></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">{currentQ.options.map((opt, idx) => { if (hiddenOptions.includes(idx)) return <div key={idx} className="bg-black/10 rounded-2xl border border-white/5 opacity-50 flex items-center justify-center"><span className="text-2xl opacity-50">🚫</span></div>; const colors = ["bg-gradient-to-br from-red-500 to-rose-600 border-red-400", "bg-gradient-to-br from-blue-500 to-indigo-600 border-blue-400", "bg-gradient-to-br from-yellow-400 to-orange-500 border-yellow-300", "bg-gradient-to-br from-green-500 to-emerald-600 border-green-400"]; const Shapes = [Triangle, Diamond, Circle, Square]; const Shape = Shapes[idx]; return (<button key={idx} onClick={() => handleAnswer(idx)} className={`${colors[idx]} border-t border-l p-6 rounded-2xl shadow-xl flex items-center text-left hover:brightness-110 active:scale-95 transition-all group relative overflow-hidden`}><div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div><div className="absolute top-2 right-2 bg-black/20 rounded px-2 py-0.5 text-xs font-bold text-white/80">{idx + 1}</div><Shape className="w-12 h-12 text-white mr-6 drop-shadow-md group-hover:rotate-12 transition-transform duration-300" /><span className="text-white font-black text-xl md:text-2xl drop-shadow-sm">{opt}</span></button>); })}</div><div className="mt-8"><Button onClick={() => handleAnswer(-1)} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md" size="sm">{t.skip}</Button></div></div></div></Layout> ); }
