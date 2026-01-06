@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Difficulty, Question, Language } from "../types";
+import { Difficulty, Question, Language, CalcResult } from "../types";
 
 // Initialize Gemini Client
 // The API key is injected via process.env.API_KEY
@@ -259,5 +259,100 @@ export const generateQuizQuestions = async (
   } catch (error) {
     console.error("Gemini API failed (Questions), using fallback:", error);
     return generateMockQuestions(topic, count, difficulty, lang);
+  }
+};
+
+const sanitizeExpression = (expression: string): string => {
+  const cleaned = expression.replace(/[^0-9+\-*/().,^%\s]/g, '');
+  return cleaned;
+};
+
+const evaluateOffline = (expression: string): string => {
+  const cleaned = sanitizeExpression(expression);
+  if (!cleaned.trim()) throw new Error("No valid expression");
+  const fn = new Function(`return (${cleaned});`);
+  const result = fn();
+  if (typeof result === 'number' && !isFinite(result)) {
+    throw new Error("Invalid result");
+  }
+  return String(result);
+};
+
+export const calculateExpression = async (
+  expression: string,
+  lang: Language,
+  useSearch: boolean
+): Promise<CalcResult> => {
+  try {
+    const ai = getAiClient();
+    const isDE = lang === 'DE';
+    const langName = isDE ? "German" : "English";
+    const prompt = `
+      You are an advanced calculator with internet reasoning skills.
+      Evaluate the following expression: "${expression}".
+      If the query mentions currencies, dates, or current values, use Google Search to get fresh context.
+      Respond ONLY as JSON with the fields:
+      {
+        "result": "final value as string",
+        "explanation": "short explanation in ${langName}",
+        "steps": ["step 1", "step 2", "..."],
+        "references": ["short source or keyword", "..."]
+      }
+      Keep answers concise and focused on the computation.
+    `;
+
+    const config: any = useSearch
+      ? { tools: [{ googleSearch: {} }] }
+      : {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              result: { type: Type.STRING },
+              explanation: { type: Type.STRING },
+              steps: { type: Type.ARRAY, items: { type: Type.STRING } },
+              references: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["result", "explanation"],
+          },
+        };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config,
+    });
+
+    let text = response.text;
+    if (!text) throw new Error("No calculator response");
+    if (useSearch) {
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    }
+
+    const parsed = JSON.parse(text);
+    return {
+      result: String(parsed.result ?? ''),
+      explanation: parsed.explanation || '',
+      steps: parsed.steps || [],
+      references: parsed.references || [],
+      usedSearch: useSearch
+    };
+  } catch (error) {
+    console.warn("Gemini API failed (Calculator), using offline mode:", error);
+    try {
+      const offline = evaluateOffline(expression);
+      return {
+        result: offline,
+        explanation: lang === 'DE'
+          ? "Offline-Berechnung ohne Internet. Ergebnisse sind nur für einfache Ausdrücke verlässlich."
+          : "Offline calculation without internet. Results are reliable for basic expressions only.",
+        steps: [],
+        references: [],
+        usedSearch: false
+      };
+    } catch (fallbackError) {
+      console.error("Offline calculation failed", fallbackError);
+      throw error;
+    }
   }
 };

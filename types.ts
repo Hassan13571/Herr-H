@@ -86,6 +86,14 @@ export interface ChatMessage {
   isHost?: boolean;
 }
 
+export interface CalcResult {
+  result: string;
+  explanation: string;
+  steps?: string[];
+  references?: string[];
+  usedSearch?: boolean;
+}
+
 // Network Messages
 
 export type NetworkMessage = 

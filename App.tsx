@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Peer } from 'peerjs';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
-import { GameState, ClientState, Difficulty, QuizSession, Question, Player, NetworkMessage, ChatMessage, Theme, Language } from './types';
-import { generateQuizQuestions, generateTopicSuggestions, generateQuizCover, fetchDailyNews } from './services/geminiService';
+import { GameState, ClientState, Difficulty, QuizSession, Question, Player, NetworkMessage, ChatMessage, Theme, Language, CalcResult } from './types';
+import { generateQuizQuestions, generateTopicSuggestions, generateQuizCover, fetchDailyNews, calculateExpression } from './services/geminiService';
 import { Button } from './components/Button';
 import { Triangle, Diamond, Circle, Square, Sparkles } from './components/Shapes';
 
@@ -14,6 +14,14 @@ const REACTION_EMOJIS = ["❤️", "😂", "😮", "🎉", "🔥", "💩"];
 const PEER_ID_PREFIX = "herr-raza-game-";
 const STORAGE_KEY_PROFILE = 'herr-raza-player-profile';
 const STORAGE_KEY_SETTINGS = 'herr-raza-settings';
+const STORAGE_KEY_CALC_HISTORY = 'herr-raza-calc-history';
+
+type CalcHistoryItem = {
+    expression: string;
+    result: string;
+    usedSearch?: boolean;
+    timestamp: number;
+};
 
 // --- TRANSLATIONS ---
 const TEXTS = {
@@ -33,6 +41,19 @@ const TEXTS = {
     result: "Ergebnis", home: "Startseite", testPlayer: "📱 Test-Spieler", loading: "Laden...",
     generating: "Generiere Quiz & Bilder...", joker: "JOKER 50/50", news: "📰 News Ticker",
     newsLoading: "Lade Nachrichten...", newsTitle: "BREAKING NEWS",
+    smartCalc: "KI-Taschenrechner",
+    calcDesc: "Rechnet, erklärt und nutzt bei Bedarf die Web-Suche.",
+    calcPlaceholder: "z.B. 23*(5+2) oder \"Euro in Dollar\"",
+    calcSearch: "Internet-Suche nutzen",
+    calcButton: "Berechnen",
+    calcHistory: "Verlauf",
+    calcClear: "Verlauf löschen",
+    calcResult: "Ergebnis",
+    calcExplanation: "Erklärung",
+    calcSteps: "Schritte",
+    calcReferences: "Quellen",
+    calcUsedSearch: "mit Web-Suche",
+    calcOffline: "Offline-Rechnung (Demo)",
     musicSettings: "Musik Einstellungen", volume: "Lautstärke", track: "Titel"
   },
   EN: {
@@ -51,6 +72,19 @@ const TEXTS = {
     result: "Result", home: "Home", testPlayer: "📱 Test Player", loading: "Loading...",
     generating: "Generating Quiz & Images...", joker: "JOKER 50/50", news: "📰 News Ticker",
     newsLoading: "Loading News...", newsTitle: "BREAKING NEWS",
+    smartCalc: "AI Calculator",
+    calcDesc: "Calculates, explains, and can leverage web search.",
+    calcPlaceholder: "e.g. 23*(5+2) or \"euro to usd\"",
+    calcSearch: "Use internet search",
+    calcButton: "Calculate",
+    calcHistory: "History",
+    calcClear: "Clear history",
+    calcResult: "Result",
+    calcExplanation: "Explanation",
+    calcSteps: "Steps",
+    calcReferences: "References",
+    calcUsedSearch: "with web search",
+    calcOffline: "Offline calculation (demo)",
     musicSettings: "Music Settings", volume: "Volume", track: "Track"
   }
 };
@@ -198,8 +232,157 @@ const ChatOverlay = ({ messages, onSendMessage, onDeleteMessage, currentUserId, 
                      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">{messages.length === 0 && <div className="text-white/30 text-center text-sm italic mt-10">{lang === 'DE' ? "Sag Hallo! 👋" : "Say Hello! 👋"}</div>}{messages.map((msg: any) => { const isMe = msg.senderId === currentUserId; const isSystem = msg.senderId === 'system'; return (<div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>{!isSystem && <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-sm border border-white/10 flex-shrink-0">{msg.senderAvatar}</div>}<div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>{!isSystem && <div className="flex items-center gap-1 mb-1"><span className="text-[10px] font-bold text-white/50">{msg.senderName}</span>{isHost && !isMe && !isSystem && <button onClick={() => onDeleteMessage && onDeleteMessage(msg.id)} className="text-[10px] text-red-400 hover:text-red-200 ml-1">🗑️</button>}</div>}<div className={`px-3 py-2 rounded-xl text-sm break-words ${isMe ? 'bg-blue-600 text-white rounded-tr-none' : isSystem ? 'bg-white/5 text-yellow-300 italic text-center w-full' : 'bg-white/10 text-white rounded-tl-none'}`}>{msg.text}</div></div></div>); })}</div>
                      <div className="p-3 border-t border-white/10 bg-white/5 rounded-b-2xl"><div className="flex gap-2"><input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="..." className="flex-1 bg-black/20 border border-white/10 rounded-full px-4 py-2 text-white text-sm outline-none focus:border-blue-500" maxLength={100} /><button onClick={handleSend} disabled={!inputText.trim()} className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-500 disabled:opacity-50">➤</button></div></div>
                  </div>
-             )}
-        </div>
+            )}
+       </div>
+    );
+};
+
+const SmartCalculator = ({ theme, lang, onBack }: { theme: Theme, lang: Language, onBack: () => void }) => {
+    const t = TEXTS[lang];
+    const [expression, setExpression] = useState('');
+    const [useSearch, setUseSearch] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
+    const [error, setError] = useState('');
+    const [history, setHistory] = useState<CalcHistoryItem[]>(() => {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_CALC_HISTORY);
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY_CALC_HISTORY, JSON.stringify(history));
+        } catch {}
+    }, [history]);
+
+    const handleCalculate = async (value?: string) => {
+        const expr = (value ?? expression).trim();
+        if (!expr) return;
+        setExpression(expr);
+        setLoading(true);
+        setError('');
+        try {
+            const result = await calculateExpression(expr, lang, useSearch);
+            setCalcResult(result);
+            setHistory(prev => [{ expression: expr, result: result.result, usedSearch: result.usedSearch, timestamp: Date.now() }, ...prev.filter(h => h.expression !== expr)].slice(0, 12));
+        } catch (e) {
+            setError(lang === 'DE' ? "Berechnung fehlgeschlagen. Bitte versuche es erneut." : "Calculation failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const clearHistory = () => setHistory([]);
+
+    const quickExamples = lang === 'DE'
+        ? ["(23 * 5.7) + 99", "Währungsrechner: 50 EUR in USD", "Wurzel aus 144 + 3^3", "CO2-Ausstoß Deutschland 2023"]
+        : ["(23 * 5.7) + 99", "Currency: 50 EUR to USD", "sqrt(144) + 3^3", "CO2 emissions Germany 2023"];
+
+    return (
+        <Layout theme={theme}>
+            <div className="px-4 md:px-8 pt-6 flex items-center justify-between gap-3">
+                <button onClick={onBack} className="text-white/70 hover:text-white font-bold flex items-center gap-2">
+                    ← {t.back}
+                </button>
+                <div className="text-right">
+                    <div className="text-xs uppercase text-white/50 font-bold tracking-wide">{t.smartCalc}</div>
+                    <div className="text-sm text-white/70">{t.calcDesc}</div>
+                </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 px-4 md:px-8 pb-12 pt-6">
+                <div className="glass p-6 rounded-3xl border border-white/10 shadow-xl backdrop-blur-lg md:col-span-2">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                        <h2 className="text-2xl font-black text-white">{t.smartCalc}</h2>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-white/60 uppercase">{t.calcSearch}</span>
+                            <div className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${useSearch ? 'bg-green-500' : 'bg-gray-300'}`} onClick={() => setUseSearch(!useSearch)}>
+                                <div className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 ${useSearch ? 'translate-x-5' : ''}`} />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <input
+                            value={expression}
+                            onChange={(e) => setExpression(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleCalculate()}
+                            placeholder={t.calcPlaceholder}
+                            className="w-full px-4 py-4 rounded-2xl bg-white/10 border border-white/20 text-white text-lg font-bold outline-none focus:border-white/60"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                            {quickExamples.map((ex, i) => (
+                                <button key={i} onClick={() => handleCalculate(ex)} className="px-3 py-1.5 text-xs font-bold rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition-colors">
+                                    {ex}
+                                </button>
+                            ))}
+                        </div>
+                        <Button onClick={() => handleCalculate()} disabled={!expression.trim() || loading} className={`w-full py-4 text-lg shadow-xl ${theme.primary}`}>
+                            {loading ? "..." : t.calcButton}
+                        </Button>
+                        {error && <div className="text-red-300 text-sm font-bold">{error}</div>}
+                    </div>
+                </div>
+
+                <div className="glass p-6 rounded-3xl border border-white/10 shadow-xl backdrop-blur-lg">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-white font-black uppercase text-sm tracking-wide flex items-center gap-2">{t.calcHistory} <span className="text-[10px] text-white/40">({history.length})</span></h3>
+                        {history.length > 0 && <button onClick={clearHistory} className="text-xs text-white/60 hover:text-white">{t.calcClear}</button>}
+                    </div>
+                    <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+                        {history.length === 0 && <div className="text-white/40 text-sm">{lang === 'DE' ? "Noch keine Berechnungen." : "No calculations yet."}</div>}
+                        {history.map((item, idx) => (
+                            <button key={idx} onClick={() => handleCalculate(item.expression)} className="w-full text-left bg-white/5 hover:bg-white/10 rounded-2xl p-3 border border-white/10 transition-colors">
+                                <div className="text-xs uppercase text-white/50 font-bold flex items-center gap-2">
+                                    {new Date(item.timestamp).toLocaleTimeString()} {item.usedSearch && <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-200 text-[10px] font-black">{t.calcUsedSearch}</span>}
+                                </div>
+                                <div className="text-white font-bold truncate">{item.expression}</div>
+                                <div className="text-white/70 text-sm truncate">{item.result}</div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {calcResult && (
+                <div className="px-4 md:px-8 pb-16">
+                    <div className="glass p-6 md:p-8 rounded-3xl border border-white/20 shadow-2xl backdrop-blur-xl max-w-5xl mx-auto space-y-4">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <h3 className="text-2xl font-black text-white flex items-center gap-2">
+                                {t.calcResult}: <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-white">{calcResult.result}</span>
+                            </h3>
+                            {calcResult.usedSearch && <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-200 text-xs font-black uppercase">{t.calcUsedSearch}</span>}
+                            {!calcResult.usedSearch && <span className="px-3 py-1 rounded-full bg-white/10 text-white/70 text-xs font-black uppercase">{t.calcOffline}</span>}
+                        </div>
+                        {calcResult.explanation && (
+                            <div>
+                                <div className="text-xs uppercase font-bold text-white/50 mb-2">{t.calcExplanation}</div>
+                                <p className="text-white/90 leading-relaxed">{calcResult.explanation}</p>
+                            </div>
+                        )}
+                        {calcResult.steps && calcResult.steps.length > 0 && (
+                            <div>
+                                <div className="text-xs uppercase font-bold text-white/50 mb-2">{t.calcSteps}</div>
+                                <ol className="list-decimal list-inside space-y-1 text-white/90">
+                                    {calcResult.steps.map((s, i) => <li key={i}>{s}</li>)}
+                                </ol>
+                            </div>
+                        )}
+                        {calcResult.references && calcResult.references.length > 0 && (
+                            <div>
+                                <div className="text-xs uppercase font-bold text-white/50 mb-2">{t.calcReferences}</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {calcResult.references.map((r, i) => <span key={i} className="px-3 py-1 rounded-full bg-white/10 text-white/80 text-xs">{r}</span>)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </Layout>
     );
 };
 
@@ -737,7 +920,7 @@ const ClientApp = ({ theme, lang, onBack, initialGameId, isEmbedded = false }: {
 
 // --- MAIN APP ---
 const App = () => {
-    const [mode, setMode] = useState<'HOME' | 'LOCAL' | 'HOST' | 'JOIN'>('HOME');
+    const [mode, setMode] = useState<'HOME' | 'LOCAL' | 'HOST' | 'JOIN' | 'CALC'>('HOME');
     const [lang, setLang] = useState<Language>(() => loadSettings().lang as Language);
     const [theme, setTheme] = useState<Theme>(() => THEMES[loadSettings().themeId] || THEMES.default);
 
@@ -748,6 +931,7 @@ const App = () => {
     if (mode === 'LOCAL') return <LocalApp theme={theme} lang={lang} />;
     if (mode === 'HOST') return <HostApp theme={theme} lang={lang} onBack={() => setMode('HOME')} />;
     if (mode === 'JOIN') return <ClientApp theme={theme} lang={lang} onBack={() => setMode('HOME')} />;
+    if (mode === 'CALC') return <SmartCalculator theme={theme} lang={lang} onBack={() => setMode('HOME')} />;
 
     return (
         <Layout theme={theme} showHeader={false}>
@@ -758,6 +942,10 @@ const App = () => {
                 <h1 className="text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-purple-200 mb-12 drop-shadow-lg text-center px-4">Herr Raza</h1>
                 <div className="grid gap-6 w-full max-w-md px-6">
                     <Button onClick={() => setMode('LOCAL')} className="w-full py-6 text-xl shadow-2xl border border-white/20">{TEXTS[lang].localGame}</Button>
+                    <Button onClick={() => setMode('CALC')} variant="secondary" className="w-full py-4 text-left shadow-xl border border-white/20 flex items-center justify-between">
+                        <span className="text-lg font-black">🔢 {TEXTS[lang].smartCalc}</span>
+                        <span className="text-xs uppercase text-white/60">{TEXTS[lang].calcDesc}</span>
+                    </Button>
                     <div className="grid grid-cols-2 gap-4">
                         <Button onClick={() => setMode('HOST')} variant="secondary" className="w-full py-4 text-sm">{TEXTS[lang].hostOnline}</Button>
                         <Button onClick={() => setMode('JOIN')} variant="secondary" className="w-full py-4 text-sm">{TEXTS[lang].joinGame}</Button>
