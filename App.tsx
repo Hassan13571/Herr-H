@@ -54,6 +54,9 @@ const PRICES: Record<PackageTier, number> = { BASIC: 3.99, PRO: 7.99, VIP: 14.99
 
 const cleanName = (raw: string) => raw.replace(/\s+/g, ' ').replace(/[^\p{L}\p{N} .'-]/gu, '').trim().slice(0, 24);
 
+const escapeText = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 const createSignatures = (name: string, tier: PackageTier): SignatureItem[] => {
   const safe = cleanName(name);
   if (!safe) return [];
@@ -77,31 +80,45 @@ const createSignatures = (name: string, tier: PackageTier): SignatureItem[] => {
   return results;
 };
 
-const buildSvgData = (item: SignatureItem) => {
-  const escaped = item.text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+const buildSvgMarkup = (item: SignatureItem) => `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="540" viewBox="0 0 1400 540">
   <rect width="1400" height="540" fill="#130726" rx="28"/>
-  <text x="80" y="315" fill="${item.style.color}" font-size="130" style="font-family:${item.style.fontFamily};font-weight:${item.style.weight};letter-spacing:${item.style.spacing}px;" transform="rotate(${item.style.angle} 280 260)">${escaped}</text>
+  <text x="80" y="315" fill="${item.style.color}" font-size="130" style="font-family:${item.style.fontFamily};font-weight:${item.style.weight};letter-spacing:${item.style.spacing}px;" transform="rotate(${item.style.angle} 280 260)">${escapeText(item.text)}</text>
   <text x="80" y="470" fill="#c8b9f2" font-size="30" style="font-family:Inter,Arial,sans-serif;letter-spacing:1.5px;">${item.style.label} • ${item.buyer} • €${item.price.toFixed(2)}</text>
 </svg>`;
 
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-};
-
-const download = (uri: string, fileName: string) => {
+const downloadFile = (content: string, fileName: string, mimeType: string) => {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = uri;
+  a.href = url;
   a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const buildPackHtml = (items: SignatureItem[]) => {
+  const cards = items
+    .map((item) => `
+      <section class="card">
+        <h3>#${item.index} • ${escapeText(item.style.label)}</h3>
+        ${buildSvgMarkup(item)}
+      </section>
+    `)
+    .join('\n');
+
+  return `<!doctype html>
+<html><head><meta charset="utf-8" /><title>Signature Pack</title>
+<style>
+body { font-family: Inter, Arial, sans-serif; background:#0f0624; color:#fff; margin:0; padding:24px; }
+h1 { margin:0 0 14px; }
+.grid { display:grid; grid-template-columns:1fr; gap:20px; }
+.card { background:#1b1037; border:1px solid #ffffff33; border-radius:14px; padding:14px; }
+svg { width:100%; height:auto; border-radius:12px; }
+</style></head>
+<body><h1>Signature Pack Export</h1><div class="grid">${cards}</div></body></html>`;
 };
 
 const App: React.FC = () => {
@@ -112,10 +129,10 @@ const App: React.FC = () => {
   const [todayOrders, setTodayOrders] = useState(0);
   const [vipQueue, setVipQueue] = useState<string[]>(['@lara', '@dani', '@milo']);
   const [normalQueue, setNormalQueue] = useState<string[]>(['@sara', '@tom', '@emre', '@mia']);
+  const [downloadStatus, setDownloadStatus] = useState('');
 
   const safeName = cleanName(name);
   const signatures = useMemo(() => (generated ? createSignatures(safeName, tier) : []), [generated, safeName, tier]);
-
   const estRevenue = useMemo(() => (todayOrders * PRICES[tier]).toFixed(2), [todayOrders, tier]);
 
   const generate = () => {
@@ -123,95 +140,61 @@ const App: React.FC = () => {
     setGenerated(true);
     setShowCount(24);
     setTodayOrders((v) => v + 1);
-    if (tier === 'VIP') {
-      setVipQueue((q) => [
-        `@${safeName.toLowerCase().replace(/\s+/g, '')}`,
-        ...q,
-      ]);
-    } else {
-      setNormalQueue((q) => [
-        `@${safeName.toLowerCase().replace(/\s+/g, '')}`,
-        ...q,
-      ]);
-    }
+    setDownloadStatus('');
+
+    const tag = `@${safeName.toLowerCase().replace(/\s+/g, '')}`;
+    if (tier === 'VIP') setVipQueue((q) => [tag, ...q]);
+    else setNormalQueue((q) => [tag, ...q]);
   };
 
   const nextCustomer = () => {
-    if (vipQueue.length) {
-      setVipQueue((q) => q.slice(1));
-      return;
-    }
-    if (normalQueue.length) setNormalQueue((q) => q.slice(1));
+    if (vipQueue.length) setVipQueue((q) => q.slice(1));
+    else if (normalQueue.length) setNormalQueue((q) => q.slice(1));
   };
 
-  const downloadOne = (item: SignatureItem) => download(buildSvgData(item), `${safeName || 'signature'}-${item.index}.svg`);
+  const downloadOne = (item: SignatureItem) => {
+    downloadFile(buildSvgMarkup(item), `${safeName || 'signature'}-${item.index}.svg`, 'image/svg+xml;charset=utf-8');
+    setDownloadStatus(`Downloaded: ${item.index}.svg`);
+  };
 
-  const downloadAll = async () => {
-    for (const item of signatures) {
-      downloadOne(item);
-      await new Promise((r) => setTimeout(r, 40));
-    }
+  const downloadPack = () => {
+    if (!signatures.length) return;
+    const html = buildPackHtml(signatures);
+    downloadFile(html, `${safeName || 'signature'}-pack.html`, 'text/html;charset=utf-8');
+    setDownloadStatus(`Downloaded pack with ${signatures.length} signatures.`);
   };
 
   return (
     <main className="h-full overflow-y-auto bg-gradient-to-br from-[#08021c] via-[#150a33] to-[#2d1556] text-white">
       <div className="mx-auto min-h-full max-w-7xl px-4 py-8 md:py-10">
         <section className="mb-5 rounded-3xl border border-white/20 bg-black/25 p-5 backdrop-blur-xl md:p-8">
-          <h1 className="bg-gradient-to-r from-fuchsia-200 via-violet-100 to-cyan-200 bg-clip-text text-center text-3xl font-black text-transparent md:text-5xl">
-            Creator Signature Business Suite
-          </h1>
-          <p className="mx-auto mt-2 max-w-3xl text-center text-violet-100/85">
-            Built for live social media income: package pricing, VIP queue, fast delivery, and beautiful signature exports.
-          </p>
+          <h1 className="bg-gradient-to-r from-fuchsia-200 via-violet-100 to-cyan-200 bg-clip-text text-center text-3xl font-black text-transparent md:text-5xl">Creator Signature Business Suite</h1>
+          <p className="mx-auto mt-2 max-w-3xl text-center text-violet-100/85">Now with reliable downloads: single SVG per card + one-click full pack file.</p>
         </section>
 
         <section className="mb-5 grid gap-4 lg:grid-cols-3">
-          <article className="rounded-2xl border border-white/15 bg-white/[0.08] p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-violet-200">Today Orders</p>
-            <p className="mt-2 text-3xl font-black">{todayOrders}</p>
-          </article>
-          <article className="rounded-2xl border border-white/15 bg-white/[0.08] p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-violet-200">Price Per Order</p>
-            <p className="mt-2 text-3xl font-black">€{PRICES[tier].toFixed(2)}</p>
-          </article>
-          <article className="rounded-2xl border border-emerald-200/25 bg-emerald-400/10 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Estimated Revenue</p>
-            <p className="mt-2 text-3xl font-black text-emerald-100">€{estRevenue}</p>
-          </article>
+          <article className="rounded-2xl border border-white/15 bg-white/[0.08] p-4"><p className="text-xs uppercase tracking-[0.2em] text-violet-200">Today Orders</p><p className="mt-2 text-3xl font-black">{todayOrders}</p></article>
+          <article className="rounded-2xl border border-white/15 bg-white/[0.08] p-4"><p className="text-xs uppercase tracking-[0.2em] text-violet-200">Price Per Order</p><p className="mt-2 text-3xl font-black">€{PRICES[tier].toFixed(2)}</p></article>
+          <article className="rounded-2xl border border-emerald-200/25 bg-emerald-400/10 p-4"><p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Estimated Revenue</p><p className="mt-2 text-3xl font-black text-emerald-100">€{estRevenue}</p></article>
         </section>
 
         <section className="mb-5 grid gap-4 lg:grid-cols-[2fr_1fr]">
           <article className="rounded-2xl border border-white/15 bg-white/[0.08] p-4 md:p-5">
             <div className="mb-3 grid gap-3 md:grid-cols-[1fr_auto_auto]">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Viewer name from live chat..."
-                maxLength={32}
-                className="rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-lg outline-none ring-fuchsia-300 placeholder:text-white/60 focus:ring-2"
-              />
-              <select
-                value={tier}
-                onChange={(e) => setTier(e.target.value as PackageTier)}
-                className="rounded-xl border border-white/25 bg-[#1c103f] px-4 py-3 font-semibold"
-              >
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Viewer name from live chat..." maxLength={32} className="rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-lg outline-none ring-fuchsia-300 placeholder:text-white/60 focus:ring-2" />
+              <select value={tier} onChange={(e) => setTier(e.target.value as PackageTier)} className="rounded-xl border border-white/25 bg-[#1c103f] px-4 py-3 font-semibold">
                 <option value="BASIC">Basic • 24 signatures • €3.99</option>
                 <option value="PRO">Pro • 72 signatures • €7.99</option>
                 <option value="VIP">VIP • 120 signatures • €14.99</option>
               </select>
-              <button
-                onClick={generate}
-                disabled={!safeName}
-                className="rounded-xl bg-gradient-to-r from-fuchsia-500 to-violet-500 px-5 py-3 font-bold disabled:opacity-40"
-              >
-                Create & Charge ✨
-              </button>
+              <button onClick={generate} disabled={!safeName} className="rounded-xl bg-gradient-to-r from-fuchsia-500 to-violet-500 px-5 py-3 font-bold disabled:opacity-40">Create & Charge ✨</button>
             </div>
 
             <div className="mb-4 flex flex-wrap gap-2">
-              <button onClick={downloadAll} disabled={!signatures.length} className="rounded-lg border border-cyan-200/35 bg-cyan-500/20 px-3 py-2 text-sm font-semibold disabled:opacity-40">Download All</button>
+              <button onClick={downloadPack} disabled={!signatures.length} className="rounded-lg border border-cyan-200/35 bg-cyan-500/20 px-3 py-2 text-sm font-semibold disabled:opacity-40">Download Pack</button>
               <button onClick={nextCustomer} className="rounded-lg border border-amber-200/35 bg-amber-500/20 px-3 py-2 text-sm font-semibold">Next Customer</button>
               <span className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm">Generated: {signatures.length}</span>
+              {downloadStatus && <span className="rounded-lg border border-emerald-200/35 bg-emerald-500/20 px-3 py-2 text-sm">{downloadStatus}</span>}
             </div>
 
             {!!signatures.length && (
@@ -222,19 +205,7 @@ const App: React.FC = () => {
                       <p className="text-xs text-violet-200">#{item.index} • {item.style.label}</p>
                       <button onClick={() => downloadOne(item)} className="rounded border border-cyan-200/30 bg-cyan-500/20 px-2 py-1 text-xs">SVG</button>
                     </div>
-                    <p
-                      className="min-h-[62px] text-4xl leading-tight"
-                      style={{
-                        fontFamily: item.style.fontFamily,
-                        fontWeight: item.style.weight,
-                        color: item.style.color,
-                        letterSpacing: `${item.style.spacing}px`,
-                        transform: `skew(${item.style.angle}deg)`,
-                        textShadow: '0 0 12px rgba(255,255,255,0.15)',
-                      }}
-                    >
-                      {item.text}
-                    </p>
+                    <p className="min-h-[62px] text-4xl leading-tight" style={{ fontFamily: item.style.fontFamily, fontWeight: item.style.weight, color: item.style.color, letterSpacing: `${item.style.spacing}px`, transform: `skew(${item.style.angle}deg)`, textShadow: '0 0 12px rgba(255,255,255,0.15)' }}>{item.text}</p>
                   </article>
                 ))}
               </section>
@@ -242,30 +213,16 @@ const App: React.FC = () => {
 
             {showCount < signatures.length && (
               <div className="mt-4 text-center">
-                <button onClick={() => setShowCount((v) => Math.min(v + 24, signatures.length))} className="rounded-xl border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold">
-                  Show More ({signatures.length - showCount} left)
-                </button>
+                <button onClick={() => setShowCount((v) => Math.min(v + 24, signatures.length))} className="rounded-xl border border-white/30 bg-white/10 px-5 py-2 text-sm font-semibold">Show More ({signatures.length - showCount} left)</button>
               </div>
             )}
           </article>
 
           <article className="rounded-2xl border border-white/15 bg-white/[0.08] p-4 md:p-5">
             <h2 className="mb-3 text-lg font-bold">Live Queue Manager</h2>
-            <div className="mb-4 rounded-xl border border-fuchsia-200/25 bg-fuchsia-500/10 p-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-fuchsia-200">VIP Queue</p>
-              <ul className="mt-2 space-y-1 text-sm">
-                {vipQueue.length ? vipQueue.map((x) => <li key={x}>• {x}</li>) : <li className="text-white/60">empty</li>}
-              </ul>
-            </div>
-            <div className="rounded-xl border border-white/20 bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-violet-200">Normal Queue</p>
-              <ul className="mt-2 space-y-1 text-sm">
-                {normalQueue.length ? normalQueue.map((x) => <li key={x}>• {x}</li>) : <li className="text-white/60">empty</li>}
-              </ul>
-            </div>
-            <div className="mt-4 rounded-xl border border-emerald-200/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">
-              Pro tip: Sell VIP slots first in live. Faster delivery = higher conversion.
-            </div>
+            <div className="mb-4 rounded-xl border border-fuchsia-200/25 bg-fuchsia-500/10 p-3"><p className="text-xs uppercase tracking-[0.2em] text-fuchsia-200">VIP Queue</p><ul className="mt-2 space-y-1 text-sm">{vipQueue.length ? vipQueue.map((x) => <li key={x}>• {x}</li>) : <li className="text-white/60">empty</li>}</ul></div>
+            <div className="rounded-xl border border-white/20 bg-white/5 p-3"><p className="text-xs uppercase tracking-[0.2em] text-violet-200">Normal Queue</p><ul className="mt-2 space-y-1 text-sm">{normalQueue.length ? normalQueue.map((x) => <li key={x}>• {x}</li>) : <li className="text-white/60">empty</li>}</ul></div>
+            <div className="mt-4 rounded-xl border border-emerald-200/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Pro tip: Use “Download Pack” in live so one click always works for customer delivery.</div>
           </article>
         </section>
       </div>
