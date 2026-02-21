@@ -1,221 +1,270 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 type SignatureStyle = {
   id: string;
   label: string;
   fontFamily: string;
-  weight: number;
-  color: string;
-  tilt: number;
-  spacing: number;
-  embellishment: string;
+  baseWeight: number;
+  accent: string;
+  flourish: string;
+  angle: number;
+  letterSpacing: number;
 };
 
-type SignatureItem = SignatureStyle & {
+type SignatureVariant = {
+  id: string;
   index: number;
+  style: SignatureStyle;
   text: string;
 };
 
-const HAND_STYLES: SignatureStyle[] = [
-  { id: 'gv', label: 'Great Vibes', fontFamily: '"Great Vibes", cursive', weight: 400, color: '#f8d4ff', tilt: -2, spacing: 1, embellishment: '✦' },
-  { id: 'pc', label: 'Pacifico', fontFamily: '"Pacifico", cursive', weight: 400, color: '#ffd6e8', tilt: 0, spacing: 0.5, embellishment: '✧' },
-  { id: 'dm', label: 'Dancing Script', fontFamily: '"Dancing Script", cursive', weight: 700, color: '#d9e9ff', tilt: -1, spacing: 0.4, embellishment: '❦' },
-  { id: 'sa', label: 'Sacramento', fontFamily: '"Sacramento", cursive', weight: 400, color: '#ffe6c7', tilt: -4, spacing: 1.2, embellishment: '❧' },
-  { id: 'as', label: 'Allura', fontFamily: '"Allura", cursive', weight: 400, color: '#fbe4ff', tilt: -3, spacing: 0.9, embellishment: '✺' },
-  { id: 'af', label: 'Alex Brush', fontFamily: '"Alex Brush", cursive', weight: 400, color: '#ccf2ff', tilt: -2, spacing: 0.8, embellishment: '✪' },
-  { id: 'pk', label: 'Parisienne', fontFamily: '"Parisienne", cursive', weight: 400, color: '#ffe9f5', tilt: -2, spacing: 1, embellishment: '❋' },
-  { id: 'mr', label: 'Mr Dafoe', fontFamily: '"Mr Dafoe", cursive', weight: 400, color: '#dff1ff', tilt: -5, spacing: 1.1, embellishment: '✥' },
-  { id: 'cb', label: 'Caveat Brush', fontFamily: '"Caveat Brush", cursive', weight: 600, color: '#e5ffd9', tilt: 1, spacing: 0.2, embellishment: '✰' },
-  { id: 'sc', label: 'Satisfy', fontFamily: '"Satisfy", cursive', weight: 400, color: '#ffe4d6', tilt: -2, spacing: 0.6, embellishment: '✵' },
-  { id: 'yl', label: 'Yellowtail', fontFamily: '"Yellowtail", cursive', weight: 400, color: '#f5e0ff', tilt: -3, spacing: 0.8, embellishment: '❈' },
-  { id: 'ka', label: 'Kaushan Script', fontFamily: '"Kaushan Script", cursive', weight: 400, color: '#d9edff', tilt: -1, spacing: 0.5, embellishment: '✹' },
+type ExportTheme = 'midnight' | 'paper' | 'transparent';
+
+const STORAGE_KEY = 'signature-lab-favorites-v2';
+
+const STYLES: SignatureStyle[] = [
+  { id: 'great-vibes', label: 'Great Vibes', fontFamily: '"Great Vibes", cursive', baseWeight: 400, accent: '#f6dbff', flourish: '✦', angle: -3, letterSpacing: 1.2 },
+  { id: 'dancing', label: 'Dancing Script', fontFamily: '"Dancing Script", cursive', baseWeight: 700, accent: '#deebff', flourish: '❦', angle: -1, letterSpacing: 0.8 },
+  { id: 'sacramento', label: 'Sacramento', fontFamily: '"Sacramento", cursive', baseWeight: 400, accent: '#ffe9d0', flourish: '❧', angle: -4, letterSpacing: 1.4 },
+  { id: 'allura', label: 'Allura', fontFamily: '"Allura", cursive', baseWeight: 400, accent: '#f8e2ff', flourish: '✺', angle: -4, letterSpacing: 1.2 },
+  { id: 'alex', label: 'Alex Brush', fontFamily: '"Alex Brush", cursive', baseWeight: 400, accent: '#d7f4ff', flourish: '✪', angle: -2, letterSpacing: 1 },
+  { id: 'parisienne', label: 'Parisienne', fontFamily: '"Parisienne", cursive', baseWeight: 400, accent: '#ffe3f2', flourish: '❋', angle: -3, letterSpacing: 0.9 },
+  { id: 'dafoe', label: 'Mr Dafoe', fontFamily: '"Mr Dafoe", cursive', baseWeight: 400, accent: '#d9f1ff', flourish: '✥', angle: -5, letterSpacing: 1.3 },
+  { id: 'caveat-brush', label: 'Caveat Brush', fontFamily: '"Caveat Brush", cursive', baseWeight: 700, accent: '#e5ffd7', flourish: '✰', angle: 1, letterSpacing: 0.5 },
+  { id: 'satisfy', label: 'Satisfy', fontFamily: '"Satisfy", cursive', baseWeight: 400, accent: '#ffe4d8', flourish: '✵', angle: -2, letterSpacing: 0.8 },
+  { id: 'yellowtail', label: 'Yellowtail', fontFamily: '"Yellowtail", cursive', baseWeight: 400, accent: '#f0dcff', flourish: '❈', angle: -3, letterSpacing: 0.8 },
+  { id: 'kaushan', label: 'Kaushan Script', fontFamily: '"Kaushan Script", cursive', baseWeight: 400, accent: '#ddefff', flourish: '✹', angle: -1, letterSpacing: 0.6 },
+  { id: 'pacifico', label: 'Pacifico', fontFamily: '"Pacifico", cursive', baseWeight: 400, accent: '#ffdce9', flourish: '✧', angle: 0, letterSpacing: 0.7 },
+  { id: 'lobster', label: 'Lobster', fontFamily: '"Lobster", cursive', baseWeight: 400, accent: '#ffd6d6', flourish: '✶', angle: -1, letterSpacing: 0.5 },
+  { id: 'marck', label: 'Marck Script', fontFamily: '"Marck Script", cursive', baseWeight: 400, accent: '#e2f7ff', flourish: '✷', angle: -3, letterSpacing: 0.9 },
+  { id: 'cookie', label: 'Cookie', fontFamily: '"Cookie", cursive', baseWeight: 400, accent: '#ffe4f9', flourish: '✸', angle: -2, letterSpacing: 0.8 },
+  { id: 'merienda', label: 'Merienda', fontFamily: '"Merienda", cursive', baseWeight: 700, accent: '#f3ffe0', flourish: '✻', angle: -1, letterSpacing: 0.7 },
+];
+
+const PATTERNS: Array<(name: string, f: string, seed: number) => string> = [
+  (n, f) => `${f} ${n}`,
+  (n, f) => `${n} ${f}`,
+  (n, f) => `${f} ${n.toUpperCase()}`,
+  (n, f) => `${n} ${f} ${n.charAt(0).toUpperCase()}.`,
+  (n, f) => `${n.split('').join(' ')} ${f}`,
+  (n, f) => `${n} ${f} ${n.slice(-1).toUpperCase()}`,
+  (n, f) => `${n.charAt(0).toUpperCase()}. ${n.slice(1)} ${f}`,
+  (n, f) => `${f} ${n} ${f}`,
+  (n, f, s) => `${n}${'~'.repeat((s % 3) + 1)} ${f}`,
+  (n, f, s) => `${n} ${f} ${['Jr.', 'Art', 'Studio', 'Original'][s % 4]}`,
+  (n, f) => `${f} ${n} •`,
+  (n, f) => `_${n}_ ${f}`,
 ];
 
 const cleanName = (raw: string) => raw.replace(/\s+/g, ' ').replace(/[^\p{L}\p{N} .'-]/gu, '').trim().slice(0, 26);
 
-const patternBuilders: Array<(name: string, m: string, i: number) => string> = [
-  (name, m) => `${m} ${name}`,
-  (name, m) => `${name} ${m}`,
-  (name, m) => `${m} ${name.toUpperCase()}`,
-  (name, m) => `${name} ${m} ${name.charAt(0)}.`,
-  (name, m) => `${name.split('').join(' ')} ${m}`,
-  (name, m) => `${name} ${m} ${name.slice(-1).toUpperCase()}`,
-  (name, m) => `${name.charAt(0).toUpperCase()}. ${name.slice(1)} ${m}`,
-  (name, m) => `${m} ${name} ${m}`,
-  (name, m, i) => `${name}${'~'.repeat((i % 3) + 1)} ${m}`,
-  (name, m, i) => `${name} ${m} ${['Jr.', 'Art', 'Studio', 'Sign'][i % 4]}`,
-];
-
-const createSignatures = (name: string): SignatureItem[] => {
+const createVariants = (name: string): SignatureVariant[] => {
   const safe = cleanName(name);
   if (!safe) return [];
-
-  const items: SignatureItem[] = [];
-  HAND_STYLES.forEach((style) => {
-    patternBuilders.forEach((builder, i) => {
-      items.push({
-        ...style,
-        index: items.length + 1,
-        text: builder(safe, style.embellishment, i),
+  const list: SignatureVariant[] = [];
+  STYLES.forEach((style) => {
+    PATTERNS.forEach((pattern, idx) => {
+      list.push({
+        id: `${style.id}-${idx}`,
+        index: list.length + 1,
+        style,
+        text: pattern(safe, style.flourish, idx),
       });
     });
   });
-
-  return items;
+  return list;
 };
 
-const buildSvgData = (item: SignatureItem) => {
-  const safeText = item.text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#12072e"/>
-      <stop offset="100%" stop-color="#29134d"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="1200" height="500" fill="url(#bg)" rx="32"/>
-  <text x="70" y="300" fill="${item.color}" font-size="120" style="font-family:${item.fontFamily};font-weight:${item.weight};letter-spacing:${item.spacing}px;" transform="rotate(${item.tilt} 300 250)">${safeText}</text>
-  <text x="70" y="440" fill="#cfc2ff" font-size="28" style="font-family:Inter,Arial,sans-serif;letter-spacing:2px;">Signature #${item.index} • ${item.label}</text>
+const themeFill = (theme: ExportTheme) => {
+  if (theme === 'paper') return '#fef7ea';
+  if (theme === 'transparent') return 'transparent';
+  return '#130726';
+};
+
+const signatureSvg = (item: SignatureVariant, opts: { size: number; color: string; extraAngle: number; extraSpacing: number; theme: ExportTheme }) => {
+  const bg = themeFill(opts.theme);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="540" viewBox="0 0 1400 540">
+  <rect x="0" y="0" width="1400" height="540" fill="${bg}" rx="28"/>
+  <text x="80" y="320" fill="${opts.color}" font-size="${opts.size}" style="font-family:${item.style.fontFamily};font-weight:${item.style.baseWeight};letter-spacing:${item.style.letterSpacing + opts.extraSpacing}px;" transform="rotate(${item.style.angle + opts.extraAngle} 280 260)">${esc(item.text)}</text>
+  <text x="80" y="470" fill="${opts.theme === 'paper' ? '#5f4a3a' : '#c5b8ed'}" font-size="28" style="font-family:Inter,Arial,sans-serif;letter-spacing:1.8px;">#${item.index} • ${item.style.label} • Signature Lab</text>
 </svg>`;
-
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
-const downloadUri = (uri: string, filename: string) => {
+const saveData = (uri: string, fileName: string) => {
   const a = document.createElement('a');
   a.href = uri;
-  a.download = filename;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
 };
 
+const svgToPng = async (svg: string) => {
+  const uri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const img = new Image();
+  img.src = uri;
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = 1400;
+  canvas.height = 540;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.drawImage(img, 0, 0);
+  return canvas.toDataURL('image/png');
+};
+
 const App: React.FC = () => {
   const [name, setName] = useState('');
   const [generated, setGenerated] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(24);
+  const [search, setSearch] = useState('');
+  const [showCount, setShowCount] = useState(30);
+  const [fontSize, setFontSize] = useState(118);
+  const [inkColor, setInkColor] = useState('#f6dbff');
+  const [extraAngle, setExtraAngle] = useState(0);
+  const [extraSpacing, setExtraSpacing] = useState(0);
+  const [theme, setTheme] = useState<ExportTheme>('midnight');
+  const [favorites, setFavorites] = useState<string[]>([]);
 
-  const signatures = useMemo(() => (generated ? createSignatures(name) : []), [generated, name]);
   const safeName = cleanName(name);
+  const generatedList = useMemo(() => (generated ? createVariants(safeName) : []), [generated, safeName]);
 
-  const handleGenerate = () => {
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return generatedList;
+    return generatedList.filter((x) => x.style.label.toLowerCase().includes(q) || x.text.toLowerCase().includes(q));
+  }, [generatedList, search]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as string[];
+        setFavorites(parsed);
+      } catch {
+        setFavorites([]);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = (id: string) => setFavorites((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const generate = () => {
     if (!safeName) return;
     setGenerated(true);
-    setVisibleCount(24);
+    setShowCount(30);
   };
 
-  const handleDownloadOne = (item: SignatureItem) => {
-    const uri = buildSvgData(item);
-    downloadUri(uri, `${safeName || 'signature'}-${item.index}.svg`);
+  const downloadSvg = (item: SignatureVariant) => {
+    const svg = signatureSvg(item, { size: fontSize, color: inkColor, extraAngle, extraSpacing, theme });
+    saveData(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, `${safeName || 'signature'}-${item.index}.svg`);
   };
 
-  const handleDownloadAll = async () => {
-    for (const item of signatures) {
-      const uri = buildSvgData(item);
-      downloadUri(uri, `${safeName || 'signature'}-${item.index}.svg`);
-      await new Promise((r) => setTimeout(r, 60));
+  const downloadPng = async (item: SignatureVariant) => {
+    const svg = signatureSvg(item, { size: fontSize, color: inkColor, extraAngle, extraSpacing, theme });
+    const png = await svgToPng(svg);
+    if (png) saveData(png, `${safeName || 'signature'}-${item.index}.png`);
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // no-op
+    }
+  };
+
+  const downloadFavoritesPack = async () => {
+    const fav = filtered.filter((x) => favorites.includes(x.id));
+    for (const item of fav) {
+      downloadSvg(item);
+      await new Promise((r) => setTimeout(r, 45));
     }
   };
 
   return (
-    <main className="h-full overflow-y-auto bg-gradient-to-br from-[#0d0424] via-[#180a3b] to-[#2b1251] text-white">
+    <main className="h-full overflow-y-auto bg-gradient-to-br from-[#09021d] via-[#180a35] to-[#2d1454] text-white">
       <div className="mx-auto min-h-full w-full max-w-7xl px-4 py-8 md:py-12">
-        <section className="rounded-3xl border border-white/20 bg-black/25 p-5 shadow-2xl backdrop-blur-xl md:p-10">
-          <div className="mb-8 text-center">
-            <p className="mb-3 inline-block rounded-full border border-fuchsia-200/40 bg-fuchsia-400/15 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-fuchsia-100">
-              Handwriting Signature Studio
-            </p>
-            <h1 className="bg-gradient-to-r from-fuchsia-200 via-violet-100 to-cyan-200 bg-clip-text text-3xl font-black text-transparent md:text-5xl">
-              120 Handwritten Signature Styles + Download
-            </h1>
-            <p className="mx-auto mt-3 max-w-3xl text-sm text-violet-100/90 md:text-base">
-              Enter one name and generate more than 100 hand-writing style signatures.
-              Download each style as SVG, or download all at once.
-            </p>
+        <section className="rounded-3xl border border-white/20 bg-black/25 p-5 shadow-2xl backdrop-blur-xl md:p-8">
+          <header className="mb-6 text-center">
+            <p className="mb-2 inline-block rounded-full border border-fuchsia-200/35 bg-fuchsia-400/15 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-fuchsia-100">World-Class Signature Creator</p>
+            <h1 className="bg-gradient-to-r from-fuchsia-200 via-violet-100 to-cyan-200 bg-clip-text text-3xl font-black text-transparent md:text-5xl">192 Signature Variants + Pro Export</h1>
+            <p className="mx-auto mt-2 max-w-3xl text-violet-100/85">One name → many realistic handwritten signatures, search, favorites, and SVG/PNG download tools.</p>
+          </header>
+
+          <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto]">
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={32} placeholder="Type TikTok user name..." className="w-full rounded-2xl border border-white/25 bg-white/10 px-5 py-4 text-lg outline-none ring-fuchsia-300 placeholder:text-white/60 focus:ring-2" />
+            <button onClick={generate} disabled={!safeName} className="rounded-2xl bg-gradient-to-r from-fuchsia-500 to-violet-500 px-6 py-4 font-bold disabled:opacity-40">Generate 192 ✨</button>
           </div>
 
-          <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Type a name from TikTok comments..."
-              maxLength={32}
-              className="w-full rounded-2xl border border-white/25 bg-white/10 px-5 py-4 text-lg text-white outline-none ring-fuchsia-300 placeholder:text-white/60 focus:ring-2"
-            />
-            <button
-              onClick={handleGenerate}
-              disabled={!safeName}
-              className="rounded-2xl bg-gradient-to-r from-fuchsia-500 to-violet-500 px-6 py-4 font-bold text-white shadow-lg shadow-fuchsia-900/40 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Generate 120 ✨
-            </button>
-            <button
-              onClick={handleDownloadAll}
-              disabled={!signatures.length}
-              className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-4 font-bold text-white shadow-lg shadow-blue-900/40 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Download All
-            </button>
+          <div className="mb-6 grid gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 md:grid-cols-5">
+            <label className="text-xs">Font Size
+              <input type="range" min={90} max={150} value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="mt-1 w-full" />
+            </label>
+            <label className="text-xs">Extra Slant
+              <input type="range" min={-8} max={8} value={extraAngle} onChange={(e) => setExtraAngle(Number(e.target.value))} className="mt-1 w-full" />
+            </label>
+            <label className="text-xs">Letter Spacing
+              <input type="range" min={-1} max={3} step={0.1} value={extraSpacing} onChange={(e) => setExtraSpacing(Number(e.target.value))} className="mt-1 w-full" />
+            </label>
+            <label className="text-xs">Ink Color
+              <input type="color" value={inkColor} onChange={(e) => setInkColor(e.target.value)} className="mt-1 block h-9 w-full rounded bg-transparent" />
+            </label>
+            <label className="text-xs">Export Theme
+              <select value={theme} onChange={(e) => setTheme(e.target.value as ExportTheme)} className="mt-1 h-9 w-full rounded border border-white/25 bg-[#1c103f] px-2">
+                <option value="midnight">Midnight</option>
+                <option value="paper">Paper</option>
+                <option value="transparent">Transparent</option>
+              </select>
+            </label>
           </div>
 
-          {!!signatures.length && (
-            <p className="mb-6 text-center text-sm text-violet-200">Generated: {signatures.length} signatures for “{safeName}”.</p>
-          )}
-
-          {!generated && (
-            <div className="rounded-2xl border border-dashed border-white/30 bg-white/5 p-8 text-center text-violet-100/80">
-              Start by entering a name. You will get 120 handwritten versions.
+          {generated && (
+            <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search style or signature text..." className="rounded-xl border border-white/20 bg-white/10 px-4 py-3" />
+              <button onClick={downloadFavoritesPack} disabled={!favorites.length} className="rounded-xl border border-cyan-200/35 bg-cyan-500/20 px-4 py-3 text-sm font-semibold disabled:opacity-40">Download Favorites ({favorites.length})</button>
+              <p className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm">Showing {Math.min(showCount, filtered.length)} / {filtered.length}</p>
             </div>
           )}
 
-          {!!signatures.length && (
+          {!generated && <div className="rounded-2xl border border-dashed border-white/30 bg-white/5 p-8 text-center text-violet-100/80">Enter name and generate to unlock full signature lab.</div>}
+
+          {!!filtered.length && (
             <>
               <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {signatures.slice(0, visibleCount).map((item) => (
-                  <article key={`${item.id}-${item.index}`} className="rounded-2xl border border-white/15 bg-white/[0.08] p-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <h2 className="text-sm font-bold text-fuchsia-100">#{item.index} • {item.label}</h2>
-                      <button
-                        onClick={() => handleDownloadOne(item)}
-                        className="rounded-lg border border-cyan-200/30 bg-cyan-400/20 px-2 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-400/30"
-                      >
-                        Download
-                      </button>
-                    </div>
-                    <div className="rounded-xl border border-white/20 bg-black/35 p-4">
-                      <p
-                        className="text-4xl leading-tight md:text-5xl"
-                        style={{
-                          fontFamily: item.fontFamily,
-                          fontWeight: item.weight,
-                          color: item.color,
-                          transform: `skew(${item.tilt}deg)`,
-                          letterSpacing: `${item.spacing}px`,
-                          textShadow: '0 0 14px rgba(255,255,255,0.16)',
-                        }}
-                      >
-                        {item.text}
-                      </p>
-                    </div>
-                  </article>
-                ))}
+                {filtered.slice(0, showCount).map((item) => {
+                  const fav = favorites.includes(item.id);
+                  return (
+                    <article key={`${item.id}-${item.index}`} className="rounded-2xl border border-white/15 bg-white/[0.08] p-4">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <h2 className="text-sm font-bold text-fuchsia-100">#{item.index} • {item.style.label}</h2>
+                        <button onClick={() => toggleFavorite(item.id)} className={`rounded px-2 py-1 text-xs font-semibold ${fav ? 'bg-pink-500/40 text-pink-50' : 'bg-white/10 text-white'}`}>{fav ? '★ Saved' : '☆ Save'}</button>
+                      </div>
+                      <div className="mb-3 rounded-xl border border-white/20 bg-black/35 p-4">
+                        <p style={{ fontFamily: item.style.fontFamily, fontWeight: item.style.baseWeight, color: inkColor || item.style.accent, transform: `skew(${item.style.angle + extraAngle}deg)`, letterSpacing: `${item.style.letterSpacing + extraSpacing}px`, fontSize: `${fontSize / 2.4}px`, textShadow: '0 0 12px rgba(255,255,255,0.16)' }} className="leading-tight">{item.text}</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <button onClick={() => downloadSvg(item)} className="rounded-lg border border-cyan-200/30 bg-cyan-400/20 py-2 font-semibold">SVG</button>
+                        <button onClick={() => downloadPng(item)} className="rounded-lg border border-blue-200/30 bg-blue-400/20 py-2 font-semibold">PNG</button>
+                        <button onClick={() => copyText(item.text)} className="rounded-lg border border-white/30 bg-white/10 py-2 font-semibold">Copy</button>
+                      </div>
+                    </article>
+                  );
+                })}
               </section>
 
-              {visibleCount < signatures.length && (
+              {showCount < filtered.length && (
                 <div className="mt-6 text-center">
-                  <button
-                    onClick={() => setVisibleCount((v) => Math.min(v + 24, signatures.length))}
-                    className="rounded-xl border border-white/30 bg-white/10 px-6 py-3 font-semibold text-white hover:bg-white/20"
-                  >
-                    Show More ({signatures.length - visibleCount} left)
-                  </button>
+                  <button onClick={() => setShowCount((v) => Math.min(v + 24, filtered.length))} className="rounded-xl border border-white/30 bg-white/10 px-6 py-3 font-semibold">Show More ({filtered.length - showCount} left)</button>
                 </div>
               )}
             </>
