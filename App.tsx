@@ -87,8 +87,53 @@ const buildSvgMarkup = (item: SignatureItem) => `<?xml version="1.0" encoding="U
   <text x="80" y="470" fill="#c8b9f2" font-size="30" style="font-family:Inter,Arial,sans-serif;letter-spacing:1.5px;">${item.style.label} • ${item.buyer} • €${item.price.toFixed(2)}</text>
 </svg>`;
 
-const downloadFile = (content: string, fileName: string, mimeType: string) => {
-  const blob = new Blob([content], { type: mimeType });
+
+
+const waitForFonts = async () => {
+  if ('fonts' in document) {
+    try {
+      await (document as any).fonts.ready;
+    } catch {
+      // ignore and continue
+    }
+  }
+};
+
+const svgToPngBlob = async (svgMarkup: string, width = 1400, height = 540) => {
+  await waitForFonts();
+  const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  try {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = svgUrl;
+    await image.decode();
+
+    const canvas = document.createElement('canvas');
+    const ratio = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(width * ratio);
+    canvas.height = Math.floor(height * ratio);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.scale(ratio, ratio);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#130726';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/png', 1));
+    return blob;
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+};
+
+const downloadFile = (content: string | Blob, fileName: string, mimeType?: string) => {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType || 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -130,6 +175,7 @@ const App: React.FC = () => {
   const [vipQueue, setVipQueue] = useState<string[]>(['@lara', '@dani', '@milo']);
   const [normalQueue, setNormalQueue] = useState<string[]>(['@sara', '@tom', '@emre', '@mia']);
   const [downloadStatus, setDownloadStatus] = useState('');
+  const [isPngExporting, setIsPngExporting] = useState(false);
 
   const safeName = cleanName(name);
   const signatures = useMemo(() => (generated ? createSignatures(safeName, tier) : []), [generated, safeName, tier]);
@@ -155,6 +201,23 @@ const App: React.FC = () => {
   const downloadOne = (item: SignatureItem) => {
     downloadFile(buildSvgMarkup(item), `${safeName || 'signature'}-${item.index}.svg`, 'image/svg+xml;charset=utf-8');
     setDownloadStatus(`Downloaded: ${item.index}.svg`);
+  };
+
+  const downloadOnePng = async (item: SignatureItem) => {
+    setIsPngExporting(true);
+    try {
+      const pngBlob = await svgToPngBlob(buildSvgMarkup(item));
+      if (!pngBlob) {
+        setDownloadStatus('PNG export failed. Please try again.');
+        return;
+      }
+      downloadFile(pngBlob, `${safeName || 'signature'}-${item.index}.png`);
+      setDownloadStatus(`Downloaded: ${item.index}.png`);
+    } catch {
+      setDownloadStatus('PNG export failed. Please try again.');
+    } finally {
+      setIsPngExporting(false);
+    }
   };
 
   const downloadPack = () => {
@@ -191,7 +254,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="mb-4 flex flex-wrap gap-2">
-              <button onClick={downloadPack} disabled={!signatures.length} className="rounded-lg border border-cyan-200/35 bg-cyan-500/20 px-3 py-2 text-sm font-semibold disabled:opacity-40">Download Pack</button>
+              <button onClick={downloadPack} disabled={!signatures.length} className="rounded-lg border border-cyan-200/35 bg-cyan-500/20 px-3 py-2 text-sm font-semibold disabled:opacity-40">Download SVG Pack</button>
               <button onClick={nextCustomer} className="rounded-lg border border-amber-200/35 bg-amber-500/20 px-3 py-2 text-sm font-semibold">Next Customer</button>
               <span className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm">Generated: {signatures.length}</span>
               {downloadStatus && <span className="rounded-lg border border-emerald-200/35 bg-emerald-500/20 px-3 py-2 text-sm">{downloadStatus}</span>}
@@ -203,7 +266,10 @@ const App: React.FC = () => {
                   <article key={item.id + item.index} className="rounded-xl border border-white/15 bg-black/25 p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-xs text-violet-200">#{item.index} • {item.style.label}</p>
-                      <button onClick={() => downloadOne(item)} className="rounded border border-cyan-200/30 bg-cyan-500/20 px-2 py-1 text-xs">SVG</button>
+                      <div className="flex gap-1">
+                        <button onClick={() => downloadOne(item)} className="rounded border border-cyan-200/30 bg-cyan-500/20 px-2 py-1 text-xs">SVG</button>
+                        <button onClick={() => downloadOnePng(item)} disabled={isPngExporting} className="rounded border border-blue-200/30 bg-blue-500/20 px-2 py-1 text-xs disabled:opacity-40">PNG</button>
+                      </div>
                     </div>
                     <p className="min-h-[62px] text-4xl leading-tight" style={{ fontFamily: item.style.fontFamily, fontWeight: item.style.weight, color: item.style.color, letterSpacing: `${item.style.spacing}px`, transform: `skew(${item.style.angle}deg)`, textShadow: '0 0 12px rgba(255,255,255,0.15)' }}>{item.text}</p>
                   </article>
@@ -222,7 +288,7 @@ const App: React.FC = () => {
             <h2 className="mb-3 text-lg font-bold">Live Queue Manager</h2>
             <div className="mb-4 rounded-xl border border-fuchsia-200/25 bg-fuchsia-500/10 p-3"><p className="text-xs uppercase tracking-[0.2em] text-fuchsia-200">VIP Queue</p><ul className="mt-2 space-y-1 text-sm">{vipQueue.length ? vipQueue.map((x) => <li key={x}>• {x}</li>) : <li className="text-white/60">empty</li>}</ul></div>
             <div className="rounded-xl border border-white/20 bg-white/5 p-3"><p className="text-xs uppercase tracking-[0.2em] text-violet-200">Normal Queue</p><ul className="mt-2 space-y-1 text-sm">{normalQueue.length ? normalQueue.map((x) => <li key={x}>• {x}</li>) : <li className="text-white/60">empty</li>}</ul></div>
-            <div className="mt-4 rounded-xl border border-emerald-200/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Pro tip: Use “Download Pack” in live so one click always works for customer delivery.</div>
+            <div className="mt-4 rounded-xl border border-emerald-200/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Pro tip: Use “Download SVG Pack” in live so one click always works for customer delivery.</div>
           </article>
         </section>
       </div>
