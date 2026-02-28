@@ -19,6 +19,8 @@ const MOCK_TOPICS = [
   "Sport", "Essen & Trinken"
 ];
 
+const IMAGE_STYLE_PROMPT = "Vibrant stylized 3D cartoon render, cinematic lighting, soft shadows, and playful depth";
+
 const generateMockQuestions = (topic: string, count: number, difficulty: Difficulty, lang: Language): Question[] => {
   const isDE = lang === 'DE';
   return Array.from({ length: count }).map((_, i) => {
@@ -85,7 +87,7 @@ export const generateQuizCover = async (topic: string): Promise<string | null> =
     
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
-      prompt: `A fun, vibrant, 3d cartoon-style illustration representing the quiz topic: "${topic}". Minimalist, colorful background, high quality, suitable for a game cover.`,
+      prompt: `A fun illustration representing the quiz topic: "${topic}". ${IMAGE_STYLE_PROMPT}. Minimalist, colorful background, high quality, suitable for a game cover.`,
       config: {
         numberOfImages: 1,
         aspectRatio: '16:9',
@@ -233,7 +235,7 @@ export const generateQuizQuestions = async (
         if (q.imagePrompt || q.text) {
              try {
                 // Shorten prompt to save tokens and be specific
-                const imgPrompt = `Cartoon style illustration, ${q.imagePrompt || q.text}. Minimalist, colorful, high quality 3d render.`;
+                const imgPrompt = `${IMAGE_STYLE_PROMPT}. Illustration focus: ${q.imagePrompt || q.text}. Minimalist, colorful composition, high quality.`;
                 const imgResponse = await ai.models.generateImages({
                     model: 'imagen-4.0-generate-001',
                     prompt: imgPrompt,
